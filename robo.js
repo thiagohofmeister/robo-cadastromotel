@@ -1,7 +1,4 @@
 var Nightmare = require('nightmare');
-var nightmare = Nightmare({
-  show: false
-});
 
 // Banco de Dados
 var mysql = require('mysql');
@@ -23,31 +20,49 @@ connection.connect();
 // Request
 var request = require('request');
 
+var principal = [];
+principal.push('https://www.guiademoteis.com.br/porto-alegre');
+
+nightmare = new Nightmare({show: false});
+nightmare.run(function () {getSites(0);});
+nightmare.end();
+
 /**
  * Busca a lista de Motéis
  * com o link de detalhe do motel
  */
-nightmare
-    .goto('https://www.guiademoteis.com.br/porto-alegre')
-    .wait()
-    .evaluate(function() {
-        var a = [];
-        $('.motelBox').each(function() {
-            a.push($(this).find('a').attr('href'))
-        })
-        return a
-    })
-    .then(function(title) {
-        runNext(0, title);
-    });
-nightmare.end();
+var getSites = function (i) {
+	if (i < principal.length) {
+		nightmare = new Nightmare({show: false});
+		nightmare
+		    .goto(principal[i])
+		    .wait()
+		    .evaluate(function() {
+		        var a = [];
+		        if ($('.motelBox').length) {
+			        $('.motelBox').each(function() {
+			            a.push($(this).find('a').attr('href'))
+			        })
+		        }
+		        return a
+		    })
+		    .then(function(title) {
+		        console.log("[AVISO] Encontrei " + title.length + " sites de motéis.");
+		        runNext(0, title);
+		    });
+		nightmare.end();
+	} else {
+		console.log("Finalizaram os cadastros");
+	}
+}
+
 
 /**
  * Entra no link de detalhe do motel
  * e busca as informações dele
  */
 var runNext = function (i, sites) {
-    if (i < sites.length - 1) {
+    if (i < sites.length) {
         nightmare = new Nightmare({show: false});
         nightmare
         	.goto(sites[i])
@@ -83,6 +98,7 @@ var runNext = function (i, sites) {
     			return dados
         	})
         	.then(function(motel) {
+        		console.log("[AVISO] Irei verificar se o motel " + motel.nome + " já está no sistema.");
         		request('http://api.magodaweb.com.br/motel/json.php?acao=validar&nome=' + motel.nome + '&telefone=' + motel.telefone + '&numero=' + motel.numero, function (error, response, body) {
 				  if (!error && response.statusCode == 200) {
 				    if (body == 0) {
@@ -99,7 +115,10 @@ var runNext = function (i, sites) {
         	});
         	nightmare.end();
     } else {
-    	console.log("Finalizaram os cadastros!");
+    	console.log("[AVISO] Irei buscar um novo site para referência");
+    	nightmare = new Nightmare({show: false});
+		nightmare.run(function () {getSites(i+1);});
+		nightmare.end();
     }
 }
 /**
