@@ -23,6 +23,10 @@ connection.connect();
 // Request
 var request = require('request');
 
+/**
+ * Busca a lista de Motéis
+ * com o link de detalhe do motel
+ */
 nightmare
     .goto('https://www.guiademoteis.com.br/porto-alegre')
     .wait()
@@ -38,7 +42,10 @@ nightmare
     });
 nightmare.end();
 
-
+/**
+ * Entra no link de detalhe do motel
+ * e busca as informações dele
+ */
 var runNext = function (i, sites) {
     if (i < sites.length - 1) {
         nightmare = new Nightmare({show: false});
@@ -79,11 +86,12 @@ var runNext = function (i, sites) {
         		request('http://api.magodaweb.com.br/motel/json.php?acao=validar&nome=' + motel.nome + '&telefone=' + motel.telefone + '&numero=' + motel.numero, function (error, response, body) {
 				  if (!error && response.statusCode == 200) {
 				    if (body == 0) {
-				    	console.log("O motel " + motel.nome + " já foi cadastrado!");
+				    	console.log("[VALIDATOR] O motel " + motel.nome + " já foi cadastrado!");
 				    	nightmare = new Nightmare({show: false});
 						nightmare.run(function () {runNext(i+1, sites);});
 						nightmare.end();
 				    } else {
+				    	console.log("[VALIDATOR] O motel " + motel.nome + " está sendo cadastrado!");
 				    	test(motel.endereco, motel, sites, i)
 				    }
 				  }
@@ -94,6 +102,11 @@ var runNext = function (i, sites) {
     	console.log("Finalizaram os cadastros!");
     }
 }
+/**
+ * Busca as Coordenadas do Motel
+ * pegando latitude e longitude
+ * além do endereço/cep
+ */
 var test = function(end, infos, sites, contador) {
 	nightmare = new Nightmare({show: false});
     nightmare
@@ -108,7 +121,10 @@ var test = function(end, infos, sites, contador) {
 				address = $('.gm-style-iw .infoWindow .address').text().trim().split(',');
 
 				cep = address[address.length - 2];
-				cep = cep.trim().substr(0, 10);
+				cep = cep.trim();
+				if (cep.length > 9) {
+					cep = 'null';
+				}
 			var result = {lat: lat, long: long, cep: cep}
 			return result
 		})
@@ -125,6 +141,10 @@ var test = function(end, infos, sites, contador) {
 		nightmare.end();
 }
 
+/**
+ * Cadastra o Motel
+ * insere o motel no banco de dados
+ */
 var add = function(informacoes, sites, contador) {
 
 	var post = 
@@ -147,15 +167,14 @@ var add = function(informacoes, sites, contador) {
 	request(url.trim(), function (error, response, body) {
 	  if (!error && response.statusCode == 200) {
 	    if (body == 0) {
-	    	console.log("O motel " + informacoes.nome + " já foi cadastrado!");
+	    	console.log("[REVALIDATOR] O motel " + informacoes.nome + " já foi cadastrado!");
 	    } else if (body == 1) {
-	    	console.log("O motel " + informacoes.nome + " foi cadastrado!");
+	    	console.log("[AVISO] O motel " + informacoes.nome + " foi cadastrado!");
 	    } else {
 	    	console.log(body);
 	    }
 	  }
 	});
-
 
 	nightmare = new Nightmare({show: false});
 	nightmare.run(function () {runNext(contador+1, sites);});
