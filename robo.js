@@ -21,6 +21,9 @@ connection.connect();
 var request = require('request');
 
 var principal = [];
+principal.push('https://www.guiademoteis.com.br/rs-outras-regioes/outras-regioes');
+principal.push('https://www.guiademoteis.com.br/rs-outras-regioes/serra-gaucha');
+principal.push('https://www.guiademoteis.com.br/rs-outras-regioes');
 principal.push('https://www.guiademoteis.com.br/porto-alegre');
 
 nightmare = new Nightmare({show: false});
@@ -48,11 +51,17 @@ var getSites = function (i) {
 		    })
 		    .then(function(title) {
 		        console.log("[AVISO] Encontrei " + title.length + " sites de motéis.");
-		        runNext(0, title);
+		        runNext(0, title, i);
 		    });
 		nightmare.end();
 	} else {
-		console.log("Finalizaram os cadastros");
+		console.log("[FIM] Finalizei o cadastro usando todas as referências.");
+		nightmare = new Nightmare({show: false});
+		nightmare.wait(10000).run(function () {
+			console.log("[AVISO] Irei passar novamente por todas as referências."); 
+			getSites(0);
+		});
+		nightmare.end();
 	}
 }
 
@@ -61,7 +70,7 @@ var getSites = function (i) {
  * Entra no link de detalhe do motel
  * e busca as informações dele
  */
-var runNext = function (i, sites) {
+var runNext = function (i, sites, contp) {
     if (i < sites.length) {
         nightmare = new Nightmare({show: false});
         nightmare
@@ -104,11 +113,11 @@ var runNext = function (i, sites) {
 				    if (body == 0) {
 				    	console.log("[VALIDATOR] O motel " + motel.nome + " já foi cadastrado!");
 				    	nightmare = new Nightmare({show: false});
-						nightmare.run(function () {runNext(i+1, sites);});
+						nightmare.run(function () {runNext(i+1, sites, contp);});
 						nightmare.end();
 				    } else {
 				    	console.log("[VALIDATOR] O motel " + motel.nome + " está sendo cadastrado!");
-				    	test(motel.endereco, motel, sites, i)
+				    	test(motel.endereco, motel, sites, i, contp)
 				    }
 				  }
 				});
@@ -117,7 +126,7 @@ var runNext = function (i, sites) {
     } else {
     	console.log("[AVISO] Irei buscar um novo site para referência");
     	nightmare = new Nightmare({show: false});
-		nightmare.run(function () {getSites(i+1);});
+		nightmare.run(function () {getSites(contp+1);});
 		nightmare.end();
     }
 }
@@ -126,7 +135,7 @@ var runNext = function (i, sites) {
  * pegando latitude e longitude
  * além do endereço/cep
  */
-var test = function(end, infos, sites, contador) {
+var test = function(end, infos, sites, contador, contp) {
 	nightmare = new Nightmare({show: false});
     nightmare
     	.goto('http://pt.mygeoposition.com/')
@@ -152,7 +161,7 @@ var test = function(end, infos, sites, contador) {
 			infos.longitude = title.long;
 			infos.cep = title.cep;
     		
-    		add(infos, sites, contador);
+    		add(infos, sites, contador, contp);
     	})
     	.catch(function () {
 		    console.log("Promise Rejected 2");
@@ -164,7 +173,7 @@ var test = function(end, infos, sites, contador) {
  * Cadastra o Motel
  * insere o motel no banco de dados
  */
-var add = function(informacoes, sites, contador) {
+var add = function(informacoes, sites, contador, contp) {
 
 	var post = 
 		"nome=" + informacoes.nome + 
@@ -196,6 +205,6 @@ var add = function(informacoes, sites, contador) {
 	});
 
 	nightmare = new Nightmare({show: false});
-	nightmare.run(function () {runNext(contador+1, sites);});
+	nightmare.run(function () {runNext(contador+1, sites, contp);});
 	nightmare.end();
 }
